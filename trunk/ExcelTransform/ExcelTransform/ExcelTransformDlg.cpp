@@ -289,10 +289,12 @@ void CExcelTransformDlg::OnBnClickedBtnClear()
 void CExcelTransformDlg::OnBnClickedBtnTransform()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (IDCANCEL == this->MessageBox("确认要开始转换吗?", "Excel转换" , MB_ICONQUESTION | MB_OKCANCEL)) 
+	int nResult = this->MessageBox("确认要开始转换吗?\n客户端选择“是”，服务端选择“否”，选择“取消”返回", "Xls转换Lua" , MB_ICONQUESTION | MB_YESNOCANCEL);
+	if (IDCANCEL == nResult) 
 	{
 		return;
 	}
+	m_eCopyRight = (IDYES == nResult) ? E_TOOL_COPYRIGHT_CLIENT : E_TOOL_COPYRIGHT_SERVER;
 
 	// 检测文件名和文件格式是否正确
 	CString cstrSource;
@@ -384,7 +386,7 @@ bool CExcelTransformDlg::ProcessTransform()
 		outputFile.open(strOutFile, std::ios::out | std::ios::trunc);
 
 		// 文件标题注明出处
-		outputFile << "-- " << strFilePath << "\n\n";
+		outputFile << "-- " << strFilePath << (E_TOOL_COPYRIGHT_CLIENT == m_eCopyRight ? " (Client)" : " (Server)") << "\n\n";
 
 		// 设置主键（工作表名做主键）
 		outputFile << finder.GetFileTitle() << "= \n{\n";
@@ -489,14 +491,15 @@ bool CExcelTransformDlg::ProcessTransform()
 
 				// 处理需要转换的数据
 				int  nKeyNum	= 1;	// 关键字数量
+				int  nKeyIndex  = 0;	// 上次关键字索引
 				bool bKey       = true;	// 是否处理关键字
 				bool bTable     = false;// 是否处理表
 				bool bCtrl      = true;	// 是否处理解析控制符
 				bool bKeyForce  = false;// 是否强制处理关键字
 				for (int nIndex = 0; nIndex < vecData.size(); nIndex++)
 				{
-					// 若此字段名没有数据则继续
-					if ("" == vecHeader[nIndex])
+					// 若此字段名没有数据或不解析则CONTINUE
+					if ("" == vecHeader[nIndex] || "N" == vecHeader[nIndex])
 					{
 						continue;
 					}
@@ -549,6 +552,7 @@ bool CExcelTransformDlg::ProcessTransform()
 							bKeyForce = false;	// 未解析关键字则不能强制解析关键字了
 						}
 						bKey = false;			// 处理关键字后不能再次处理了
+						nKeyIndex = nIndex;		// 记录上次关键字索引
 						continue;
 					}
 
@@ -559,6 +563,7 @@ bool CExcelTransformDlg::ProcessTransform()
 						if (bTable)
 						{
 							outputFile << "\n" << strCtrl << "\t" << vecHeader[nIndex] << "= {\n";						
+							outputFile << strCtrl << "\t\t" << vecHeader[nKeyIndex] << " = " << vecData[nKeyIndex] << ",\n";
 							bTable = false;		// 处理表后不能再次处理了
 							bCtrl  = false;		// 处理表后控制符不能再次解析
 						}
@@ -568,7 +573,7 @@ bool CExcelTransformDlg::ProcessTransform()
 					}
 
 					// 处理一般数据
-					outputFile << vecHeader[nIndex] << "=" << vecData[nIndex] << ", ";
+					outputFile << vecHeader[nIndex] << " = " << vecData[nIndex] << ", ";
 				}
 				outputFile << "},\n";			// 行结束符
 				nTotalKey = nKeyNum;			// 记录总关键字数量
