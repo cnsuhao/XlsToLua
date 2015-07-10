@@ -496,6 +496,7 @@ bool CExcelTransformDlg::ProcessTransform()
 				bool bTable     = false;// 是否处理表
 				bool bCtrl      = true;	// 是否处理解析控制符
 				bool bKeyForce  = false;// 是否强制处理关键字
+				bool bEnd		= false;// 是否处理行结束符
 				for (int nIndex = 0; nIndex < vecData.size(); nIndex++)
 				{
 					// 若此字段名没有数据或不解析则CONTINUE
@@ -503,6 +504,7 @@ bool CExcelTransformDlg::ProcessTransform()
 					{
 						continue;
 					}
+					bEnd = false;		// 默认不需要处理行结束符
 
 					// 文档解析控制符
 					CString strCtrl;
@@ -574,8 +576,15 @@ bool CExcelTransformDlg::ProcessTransform()
 
 					// 处理一般数据
 					outputFile << vecHeader[nIndex] << " = " << vecData[nIndex] << ", ";
+					bEnd = true;				// 有数据写入需要处理行结束符
 				}
-				outputFile << "},\n";			// 行结束符
+
+				// 处理行结束符
+				if (bEnd)
+				{
+					outputFile << "},\n";
+				}
+
 				nTotalKey = nKeyNum;			// 记录总关键字数量
 				vecOldData.assign(vecData.begin(), vecData.end());	// 记录当前数据
 				vecData.clear();				// 清空当前数据
